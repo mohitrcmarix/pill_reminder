@@ -1,0 +1,422 @@
+<?php
+/**
+ * Plugin Name:       Pill Reminders
+ * Description:       Automatically creates Pill Reminder pages on activation and displays them via shortcodes.
+ * Version:           1.1.0
+ * Author:            Your Name
+ * Text Domain:       pill-reminder
+ */
+
+// Exit if accessed directly
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Enqueue assets
+function pill_reminders_enqueue_assets()
+{
+    if (is_page(['pill_reminder', 'add_pill_reminder', 'pill_reminder_details', 'view_pill_reminder'])) 
+    {
+        $cssurl = plugin_dir_url(__FILE__) . 'assets/css/';
+        $jsurl = plugin_dir_url(__FILE__) . 'assets/js/';
+
+        wp_enqueue_style('pill-reminders-custom-style', $cssurl . 'custom.css');
+        wp_enqueue_style('pill-reminders-style', $cssurl . 'style.css');
+        wp_enqueue_style(
+            'pill-reminders-google-fonts',
+            'https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400..700;1,400..700&display=swap',
+            [],
+            null
+        );
+
+        wp_enqueue_script('jquery');
+        wp_enqueue_script('popper-js', 'https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js', [], null, true);
+        wp_enqueue_script('bootstrap-bundle', 'https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js', ['jquery', 'popper-js'], null, true);
+
+        wp_enqueue_script('pill-reminders-custom', $jsurl . 'custom.js', ['jquery'], '1.1.0', true);
+        wp_enqueue_script('pill-reminders-new', $jsurl . 'new.js', ['jquery'], '1.0.0', true);
+
+        wp_localize_script('pill-reminders-new', 'ajax_object', [
+            'ajaxurl' => admin_url('admin-ajax.php')
+        ]);
+    }
+}
+add_action('wp_enqueue_scripts', 'pill_reminders_enqueue_assets');
+
+// Favicon (optional)
+add_action('wp_head', function () {
+    echo '<link rel="icon" type="image/x-icon" href="' . plugin_dir_url(__FILE__) . 'img/favicon.ico">';
+});
+
+//create table
+require_once plugin_dir_path(__FILE__) . 'includes/create_table.php';
+
+// Activation Hook - Creates pages automatically
+register_activation_hook(__FILE__, 'pill_reminders_activate');
+
+function pill_reminders_activate()
+{
+
+    pill_reminders_install_table();
+
+    pill_reminders_create_page(
+        'Pill Reminder',
+        'pill_reminder',
+        '[pill_reminder_shortcode]'
+    );
+
+    pill_reminders_create_page(
+        'Add Pill Reminder',
+        'add_pill_reminder',
+        '[add_pill_reminder_shortcode]'
+    );
+
+    pill_reminders_create_page(
+        'Pill Reminder Details',
+        'pill_reminder_details',
+        '[pill_reminder_details_shortcode]'
+    );
+
+    pill_reminders_create_page(
+        'view_pill_reminder',
+        'view_pill_reminder',
+        '[view_pill_reminder_shortcode]'
+    );
+
+    flush_rewrite_rules();
+}
+
+
+/**
+ * Cleanup function: Deletes the pages by slug
+ */
+
+register_deactivation_hook(__FILE__, 'pill_reminders_deactivate');
+
+function pill_reminders_deactivate()
+{
+    $slugs = ['pill_reminder', 'add_pill_reminder', 'pill_reminder_details', 'view_pill_reminder','hello'];
+
+    foreach ($slugs as $slug) {
+        $page = get_page_by_path($slug);
+        if ($page) {
+            wp_delete_post($page->ID, true);
+        }
+    }
+
+    // pill_reminders_remove_table();
+
+    flush_rewrite_rules();
+}
+
+function pill_reminders_create_page($title, $slug, $shortcode)
+{
+    $existing = get_page_by_path($slug);
+    if (!$existing) {
+        wp_insert_post([
+            'post_title' => $title,
+            'post_name' => $slug,
+            'post_content' => $shortcode,
+            'post_status' => 'publish',
+            'post_type' => 'page',
+            'post_author' => 1,
+        ]);
+    }
+}
+
+// sortcodes 
+
+// Main Pill Reminders Page
+add_shortcode('pill_reminder_shortcode', 'pill_reminders_page_content');
+function pill_reminders_page_content()
+{
+    ob_start();
+    $template = plugin_dir_path(__FILE__) . 'templates/pill_reminder.php';
+    if (file_exists($template)) {
+        require_once $template;
+        return pill_reminder();
+    }
+    return "Template file not found at: " . $template;
+}
+
+add_shortcode("add_pill_reminder_shortcode", "render_add_pill_page");
+function render_add_pill_page()
+{
+    ob_start();
+    $template = plugin_dir_path(__FILE__) . 'templates/add_pill_reminder.php';
+    if (file_exists($template)) {
+        require_once $template;
+        return add_pill_reminder();
+    }
+    return "Template file not found at: " . $template;
+}
+
+add_shortcode("pill_reminder_details_shortcode", "render_pill_reminder_details_page");
+function render_pill_reminder_details_page()
+{
+    ob_start();
+    $template = plugin_dir_path(__FILE__) . 'templates/pill_reminder_details.php';
+    if (file_exists($template)) {
+        require_once $template;
+        return pill_reminder_details();
+    }
+    return "Template file not found at: " . $template;
+}
+
+add_shortcode("view_pill_reminder_shortcode", "render_view_pill_reminder_page");
+function render_view_pill_reminder_page()
+{
+    ob_start();
+    $template = plugin_dir_path(__FILE__) . 'templates/view_pill_reminder.php';
+    if (file_exists($template)) {
+        require_once $template;
+        return view_pill_reminder();
+    }
+    return "Template file not found at: " . $template;
+}
+
+
+//add and edit pill
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_reminder'])) {
+
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'pill_reminders';
+
+    $edit_id = isset($_POST['edit_id']) ? intval($_POST['edit_id']) : 0;
+
+    $reminder_title = sanitize_text_field($_POST['title']);
+    $medicine_name = sanitize_text_field($_POST['medicine_name']);
+    $dose_value = sanitize_text_field($_POST['dose_value']);
+    $dose_type = sanitize_text_field($_POST['dose_type']);
+    $frequency = sanitize_text_field($_POST['frequency']);
+    $duration_type = sanitize_text_field($_POST['duration_type']);
+    $duration_value = intval($_POST['duration_value']);
+    $instruction = sanitize_text_field($_POST['instruction']);
+    $from_date = sanitize_text_field($_POST['from_date']);
+    $to_date = sanitize_text_field($_POST['to_date']);
+    $times = isset($_POST['times']) ? array_map('sanitize_text_field', $_POST['times']) : [];
+    $email = sanitize_email($_POST['email']);
+
+    $errors = [];
+    if (empty($reminder_title))
+        $errors[] = "Reminder title is required.";
+    if (empty($medicine_name))
+        $errors[] = "Medicine name is required.";
+    if (empty($dose_value))
+        $errors[] = "Dose value is required.";
+    if (empty($dose_type))
+        $errors[] = "Dose type is required.";
+    if (empty($frequency))
+        $errors[] = "Frequency is required.";
+    if (empty($duration_type))
+        $errors[] = "Duration type is required.";
+    if ($duration_value <= 0)
+        $errors[] = "Duration value must be greater than zero.";
+    if (empty($instruction))
+        $errors[] = "Instruction is required.";
+    if (empty($from_date) || empty($to_date))
+        $errors[] = "Start and end dates are required.";
+    if (strtotime($to_date) < strtotime($from_date))
+        $errors[] = "End date must be after start date.";
+    if (empty($times))
+        $errors[] = "At least one reminder time is required.";
+    if (!is_email($email))
+        $errors[] = "Valid email is required.";
+
+    if (!empty($errors)) {
+        foreach ($errors as $error) {
+            echo '<div class="alert alert-danger">' . esc_html($error) . '</div>';
+        }
+    } else {
+
+        $data = [
+            'user_id' => get_current_user_id(),
+            'reminder_title' => $reminder_title,
+            'medicine_name' => $medicine_name,
+            'dose_value' => $dose_value,
+            'dose_type' => $dose_type,
+            'frequency' => $frequency,
+            'duration_type' => $duration_type,
+            'duration_value' => $duration_value,
+            'instruction' => $instruction,
+            'from_date' => $from_date,
+            'to_date' => $to_date,
+            'reminder_times' => wp_json_encode($times),
+            'email' => $email,
+        ];
+
+        if ($edit_id > 0) {
+            $result = $wpdb->update(
+                $table_name,
+                $data,
+                ['id' => $edit_id],           // WHERE condition
+                [                         // Format for $data values
+                    '%d',   // user_id
+                    '%s',   // reminder_title
+                    '%s',   // medicine_name
+                    '%s',   // dose_value
+                    '%s',   // dose_type
+                    '%s',   // frequency
+                    '%s',   // duration_type
+                    '%d',   // duration_value
+                    '%s',   // instruction
+                    '%s',   // from_date
+                    '%s',   // to_date
+                    '%s',   // reminder_times
+                    '%s'    // email
+                ],
+                ['%d']                        // Format for WHERE (id)
+            );
+
+            // echo "<pre>";
+            // print_r($result);   
+            // echo "</pre>";
+
+            if ($result !== false && $result > 0) {
+                echo '<div class="alert alert-success">Pill Reminder updated successfully!</div>';
+                echo '<script>
+                    setTimeout(function() {
+                        window.location.href = "' . esc_url(site_url('/pill_reminder_details/')) . '";
+                    }, 1500);
+                </script>';
+            } elseif ($result === 0) {
+                echo '<div class="alert alert-warning">No changes detected or record not found.</div>';
+            } else {
+                echo '<div class="alert alert-danger">Update failed. Error: ' . esc_html($wpdb->last_error) . '</div>';
+            }
+        } else {
+
+            $result = $wpdb->insert($table_name, $data);
+
+            if ($result) {
+                echo '<div class="alert alert-success">New reminder added successfully!</div>';
+                $_POST = [];
+                echo '<script>
+                    setTimeout(function() {
+                        window.location.href = "' . esc_url(site_url('/pill_reminder_details/')) . '";
+                    }, 1500);
+                </script>'; 
+            } else {
+                echo '<div class="alert alert-danger">Failed to add reminder.</div>';
+            }
+        }
+    }
+}
+
+//active deactive
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['medicine_id'])) {
+    $medicine_id = intval($_POST['medicine_id']);
+    $status = isset($_POST['status']) ? 1 : 0;
+
+    $wpdb->update($wpdb->prefix . 'pill_reminders', ['status' => $status], ['id' => $medicine_id], ['%d'], ['%d']);
+}
+
+// delete pill
+add_action('wp_ajax_delete_pill_reminder', 'pill_reminders_delete_reminder');
+
+function pill_reminders_delete_reminder()
+{
+
+    if (!current_user_can('manage_options') && !is_user_logged_in()) {
+        wp_send_json_error('Permission denied');
+    }
+
+    global $wpdb;
+    $table = $wpdb->prefix . 'pill_reminders';
+    $medicine_id = intval($_POST['medicine_id']);
+
+    if ($medicine_id > 0) {
+        $deleted = $wpdb->delete($table, ['id' => $medicine_id], ['%d']);
+
+        if ($deleted) {
+            wp_send_json_success('Reminder deleted successfully');
+        } else {
+            wp_send_json_error('Failed to delete reminder');
+        }
+    } else {
+        wp_send_json_error('Invalid reminder ID');
+    }
+}
+
+add_action('phpmailer_init', function($phpmailer) {
+    $phpmailer->isSMTP();
+    $phpmailer->Host       = 'sandbox.smtp.mailtrap.io';
+    $phpmailer->Port       = 2525;                    
+    $phpmailer->SMTPAuth   = true;
+    $phpmailer->Username   = 'f0916b4dc5dd24';
+    $phpmailer->Password   = 'eeb420fe2912e6';              
+    $phpmailer->SMTPSecure = 'tls';
+    $phpmailer->From       = 'mohitr.cmarix@gmail.com';   
+    $phpmailer->FromName   = 'Pill Reminder';
+});
+
+add_action('pill_reminder_cron', 'send_pill_reminder_emails');
+
+if (!wp_next_scheduled('pill_reminder_cron')) {
+    wp_schedule_event(time(), 'minutely', 'pill_reminder_cron');
+}
+
+add_filter('cron_schedules', function($schedules) {
+    $schedules['minutely'] = ['interval' => 60, 'display' => __('Every Minute')];
+    return $schedules;
+});
+
+function send_pill_reminder_emails() {
+    global $wpdb;
+
+    $reminders = $wpdb->get_results("
+        SELECT * FROM {$wpdb->prefix}pill_reminders 
+        WHERE status = 1 
+        AND CURDATE() BETWEEN from_date AND to_date
+    ");
+
+    $now = current_time('H:i');        // Current time like "14:00"
+
+    foreach ($reminders as $rem) {
+        $times = json_decode($rem->reminder_times, true) ?: [];
+        
+        // Improved matching: Check if current time is in the list
+        if (in_array($now, $times)) {
+
+            // Get emails from database + your email
+            $emails = array_filter(array_map('trim', explode(',', $rem->email)));
+            $emails[] = 'sanskar.cmarix@gmail.com';   // Your email always gets copy
+
+            // Debug log (you can see in wp-content/debug.log)
+            error_log("Pill Reminder Triggered: {$rem->medicine_name} at {$now} | Emails: " . implode(', ', $emails));
+
+            add_filter('wp_mail_content_type', fn() => 'text/html');
+
+            $subject = "🔔 Pill Reminder - {$rem->medicine_name} at {$now}";
+
+            $message = '
+            <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto; padding:20px; border:1px solid #ddd;">
+                <h2 style="color:#d32f2f;">Pill Reminder</h2>
+                <p>Hello,</p>
+                <p><strong>Time to take your medicine:</strong></p>
+                
+                <table style="width:100%; border-collapse:collapse; margin:15px 0;">
+                    <tr><td style="padding:12px; border:1px solid #ddd; background:#f9f9f9; width:40%;"><strong>Medicine</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($rem->medicine_name) . '</td></tr>
+                    <tr><td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Time</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($now) . '</td></tr>
+                    <tr><td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Dose</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($rem->dose_value . ' ' . $rem->dose_type) . '</td></tr>
+                    <tr><td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Instruction</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($rem->instruction) . '</td></tr>
+                </table>
+
+                <p><strong>Please take it on time.</strong></p>
+                <hr>
+                <p style="font-size:12px;color:#666;">This is an automated reminder from Pill Reminders plugin.</p>
+            </div>';
+
+            $sent = wp_mail($emails, $subject, $message);
+
+            // Log if email was sent or failed
+            error_log($sent ? "Email sent successfully to " . implode(', ', $emails) : "Email FAILED to send");
+
+            remove_filter('wp_mail_content_type', fn() => 'text/html');
+        }
+    }
+}
