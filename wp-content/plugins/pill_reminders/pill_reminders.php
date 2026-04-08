@@ -107,7 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['medicine_id'])) {
     $wpdb->update($wpdb->prefix . 'pill_reminders', ['status' => $status], ['id' => $medicine_id], ['%d'], ['%d']);
 }
 
-
 // -------------------- email sending code for remider timming --------------------------
 
 function mailtrap($phpmailer)
@@ -178,7 +177,7 @@ add_action('check_reminder_email', function() {
                 $reminder_timestamp = $reminder_dt->getTimestamp();
 
                 // 3. Log every check
-                error_log("ℹ️ User {$row->user_id} reminder scheduled at {$reminder_dt->format('Y-m-d H:i:s')} — current time {$current_dt->format('Y-m-d H:i:s')}");
+                // error_log("ℹ️ User {$row->user_id} reminder scheduled at {$reminder_dt->format('Y-m-d H:i:s')} — current time {$current_dt->format('Y-m-d H:i:s')}");
 
                 // 4. Compare and send
                 if (abs($current_timestamp - $reminder_timestamp) < 60) {
