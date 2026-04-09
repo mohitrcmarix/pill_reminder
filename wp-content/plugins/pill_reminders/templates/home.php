@@ -11,10 +11,20 @@ function home()
 						<h3 class="font-25 fw-bold text-secondary m-b15">Pill Reminders</h3>
 
 						<?php
-						$reminders = [];
 					
-						if (empty($reminders)) {
+						if (!is_user_logged_in()) {
 							?>
+							<p class="font-16 fw-medium text-secondary m-b30 text-center">
+								There are no any pill reminder.<br>
+								Click the button below to add reminder.
+							</p>
+							<a href="<?php echo esc_url(home_url('/sign-in/')); ?>"
+								class="btn btn-danger fw-semibold btnhover p-3">
+								Add Reminder
+							</a>
+							<?php
+						} else {
+						?>
 							<p class="font-16 fw-medium text-secondary m-b30 text-center">
 								There are no any pill reminder.<br>
 								Click the button below to add reminder.
@@ -24,9 +34,6 @@ function home()
 								Add Reminder
 							</a>
 							<?php
-						} else {
-							echo '<ul class="pill-reminder-list">';
-							echo '</ul>';
 						}
 						?>
 					</div>

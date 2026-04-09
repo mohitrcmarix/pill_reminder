@@ -1,6 +1,7 @@
 <?php
-function pill_reminder_details()
-{
+if (!function_exists('pill_reminder_detail')) {
+function pill_reminder_detail() {
+    ob_start();
     global $wpdb;
     $table = $wpdb->prefix . 'pill_reminders';
 
@@ -58,4 +59,6 @@ function pill_reminder_details()
     } else {
         echo "<p>No reminders found.</p>";
     }
+    return ob_get_clean();
+}
 }

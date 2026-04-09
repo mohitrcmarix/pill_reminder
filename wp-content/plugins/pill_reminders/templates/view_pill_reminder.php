@@ -2,6 +2,7 @@
 
 function view_pill_reminder()
 {
+ob_start();
     global $wpdb;
     $table = $wpdb->prefix . 'pill_reminders';
     $user_id = get_current_user_id();
@@ -111,6 +112,7 @@ function view_pill_reminder()
                 </div>
             </section>
             <?php
+    return ob_get_clean();
           
 }
 

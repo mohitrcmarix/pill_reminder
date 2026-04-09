@@ -7,6 +7,7 @@ function pill_reminders_install_table() {
     $sql = "CREATE TABLE $table_name (
     id mediumint(9) NOT NULL AUTO_INCREMENT,
     user_id bigint(20) unsigned NOT NULL,
+    post_id bigint(20) DEFAULT NULL,
     reminder_title varchar(255) DEFAULT '' NOT NULL,
     medicine_name varchar(255) NOT NULL,
     dose_value varchar(50) DEFAULT '' NOT NULL,

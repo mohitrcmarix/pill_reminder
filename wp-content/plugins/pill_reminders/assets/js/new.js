@@ -1,83 +1,88 @@
-jQuery(document).ready(function($) {
-    
-    $('.btn-plus').on('click', function(e) {
-        e.preventDefault();
-        
-        var $input = $(this).closest('.dose-wrapper').find('.dose-input');
-        var currentVal = parseInt($input.val());
-        
-        if (!isNaN(currentVal)) {
-            $input.val(currentVal + 1);
-        } else {
-            $input.val(1);
-        }
-    });
+jQuery(document).ready(function ($) {
+  // click on plus icon
+  $(".btn-plus").on("click", function (e) {
+    e.preventDefault();
 
-    $('.btn-minus').on('click', function(e) {
-        e.preventDefault();
-        
-        var $input = $(this).closest('.dose-wrapper').find('.dose-input');
-        var currentVal = parseInt($input.val());
-        
-        if (!isNaN(currentVal) && currentVal > 0) {
-            $input.val(currentVal - 1);
-        } else {
-            $input.val(0);
-        }
-    });
+    var $input = $(this).closest(".dose-wrapper").find(".dose-input");
+    var currentVal = parseInt($input.val());
 
-    $('#reminderForm').on('submit', function(e) {
+    if (!isNaN(currentVal)) {
+      $input.val(currentVal + 1);
+    } else {
+      $input.val(1);
+    }
+  });
+
+  // click on minus icon
+  $(".btn-minus").on("click", function (e) {
+    e.preventDefault();
+
+    var $input = $(this).closest(".dose-wrapper").find(".dose-input");
+    var currentVal = parseInt($input.val());
+
+    if (!isNaN(currentVal) && currentVal > 0) {
+      $input.val(currentVal - 1);
+    } else {
+      $input.val(0);
+    }
+  });
+
+  // reset the add pillreminder form
+  $("#reminderForm").on("submit", function (e) {
     // after a short delay, clear the form
     var form = this;
-    setTimeout(function() {
-        form.reset();
+    setTimeout(function () {
+      form.reset();
     }, 500);
-});
+  });
 
+// delete the pill reminder
+  $(document).on("click", ".delete-reminder", function (e) {
+    e.preventDefault();
 
-    $(document).on('click', '.delete-reminder', function(e) {
-        e.preventDefault();
-        
-        var medicineId = $(this).data('id');
-        var card = $(this).closest('.col-md-6');
-        
-        if (confirm('Are you sure you want to delete this pill reminder?')) {
-            $.ajax({
-                url: ajax_object.ajaxurl,  
-                type: 'POST',
-                data: {
-                    action: 'delete_pill_reminder',
-                    medicine_id: medicineId,
-                },
-                success: function(response) {
-                    if (response.success) {
-                        card.fadeOut(400, function() {
-                            $(this).remove();
-                            
-                            if ($('.col-md-6').length === 0) {
-                                $('.row.gy-3').html('<div class="col-12"><p class="text-center">No reminders found.</p></div>');
-                            }
-                        });
-                    } else {
-                        alert('Failed to delete: ' + (response.data || 'Unknown error'));
-                    }
-                },
-                error: function() {
-                    alert('Something went wrong. Please try again.');
-                }
+    var medicineId = $(this).data("id");
+    var card = $(this).closest(".col-md-6");
+
+    if (confirm("Are you sure you want to delete this pill reminder?")) {
+      $.ajax({
+        url: ajax_object.ajaxurl,
+        type: "POST",
+        data: {
+          action: "delete_pill_reminder",
+          medicine_id: medicineId,
+        },
+        success: function (response) {
+          if (response.success) {
+            card.fadeOut(400, function () {
+              $(this).remove();
+
+              if ($(".col-md-6").length === 0) {
+                $(".row.gy-3").html(
+                  '<div class="col-12"><p class="text-center">No reminders found.</p></div>',
+                );
+              }
             });
-        }
-    });
+          } else {
+            alert("Failed to delete: " + (response.data || "Unknown error"));
+          }
+        },
+        error: function () {
+          alert("Something went wrong. Please try again.");
+        },
+      });
+    }
+  });
 
-    $(document).on("click", ".add-time-btn", function (e) {
-        e.preventDefault();
+// add new time field 
+  $(document).on("click", ".add-time-btn", function (e) {
+    e.preventDefault();
 
-        var $newRow = $(".reminder-time-row:first").clone();
+    var $newRow = $(".reminder-time-row:first").clone();
 
-        $newRow.find("input").val("");
+    $newRow.find("input").val("");
 
-        // Change the button from Add to Remove
-        $newRow.find(".col-lg-auto").html(`
+    // Change the button from Add to Remove
+    $newRow.find(".col-lg-auto").html(`
             <a href="#" class="font-16 font-weight-500 text-danger remove-time-btn">
                 <svg width="25" height="26" viewBox="0 0 25 26" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="12.5" cy="13" r="12.5" fill="#FF2A2A"/>
@@ -87,51 +92,72 @@ jQuery(document).ready(function($) {
             </a>
         `);
 
-        $(".reminder-time-row:last").after($newRow);
-    });
+    $(".reminder-time-row:last").after($newRow);
+  });
 
-    $(document).on("click", ".remove-time-btn", function (e) {
-        e.preventDefault();
-        $(this).closest(".reminder-time-row").remove();
-    });
+// remove added time field
+  $(document).on("click", ".remove-time-btn", function (e) {
+    e.preventDefault();
+    $(this).closest(".reminder-time-row").remove();
+  });
 
+// hide show password
+  $("#togglePassword").on("click", function () {
+    console.log("Password toggle clicked");
 
+    const input = $("#password");
+    const type = input.attr("type") === "password" ? "text" : "password";
+    input.attr("type", type);
 
-    // $('.toggle-status').on('change', function() {
-    //     let checkbox = $(this);
-    //     let currentStatus = checkbox.is(':checked') ? 1 : 0;
-    //     let medicineId = checkbox.data('medicine-id'); // Add medicine ID in HTML
+    $(this).text(type === "password" ? "Show" : "Hide");
+  });
 
+//   hide show confirmpassword
+  $("#toggleConfirmPassword").on("click", function () {
+    console.log("Confirm password toggle clicked");
 
-    //     // Update text label
-    //     let statusText = currentStatus ? 'Active' : 'Deactive';
-    //     checkbox.closest('h4').find('span').text(statusText);
+    const input = $("#confirmPassword");
+    const type = input.attr("type") === "password" ? "text" : "password";
+    input.attr("type", type);
 
-    //     // Change background color accordingly
-    //     if(currentStatus){
-    //         checkbox.closest('h4').find('span').css({
-    //             'background-color':'#CFF3D1',
-    //             'color':'#388E3C'
-    //         });
-    //     } else {
-    //         checkbox.closest('h4').find('span').css({
-    //             'background-color':'#F3D1D1',
-    //             'color':'#8E3C3C'
-    //         });
-    //     }
+    $(this).text(type === "password" ? "Show" : "Hide");
+  });
 
-    //     // Send AJAX request to update DB
-    //     $.ajax({
-    //         url: ajax_object.ajaxurl, // WordPress provides this global variable
-    //         type: 'POST',
-    //         data: {
-    //             action: 'update_medicine_status',
-    //             medicine_id: medicineId,
-    //             status: currentStatus
-    //         },
-    //         success: function(response) {
-    //             console.log('Status updated:', response);
-    //         }
-    //     });
-    // });    
+  // $('.toggle-status').on('change', function() {
+  //     let checkbox = $(this);
+  //     let currentStatus = checkbox.is(':checked') ? 1 : 0;
+  //     let medicineId = checkbox.data('medicine-id'); // Add medicine ID in HTML
+
+  //     // Update text label
+  //     let statusText = currentStatus ? 'Active' : 'Deactive';
+  //     checkbox.closest('h4').find('span').text(statusText);
+
+  //     // Change background color accordingly
+  //     if(currentStatus){
+  //         checkbox.closest('h4').find('span').css({
+  //             'background-color':'#CFF3D1',
+  //             'color':'#388E3C'
+  //         });
+  //     } else {
+  //         checkbox.closest('h4').find('span').css({
+  //             'background-color':'#F3D1D1',
+  //             'color':'#8E3C3C'
+  //         });
+  //     }
+
+  //     // Send AJAX request to update DB
+  //     $.ajax({
+  //         url: ajax_object.ajaxurl, // WordPress provides this global variable
+  //         type: 'POST',
+  //         data: {
+  //             action: 'update_medicine_status',
+  //             medicine_id: medicineId,
+  //             status: currentStatus
+  //         },
+  //         success: function(response) {
+  //             console.log('Status updated:', response);
+  //         }
+  //     });
+  // });
+
 });

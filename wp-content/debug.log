@@ -1,1 +1,1 @@
-[08-Apr-2026 13:48:05 UTC] ℹ️ User 0 reminder scheduled at 2026-04-08 15:55:00 — current time 2026-04-08 19:18:05
+[09-Apr-2026 13:54:51 UTC] Cron reschedule event error for hook: check_reminder_email, Error code: could_not_set, Error message: The cron event list could not be saved., Data: {"schedule":"minute","args":[],"interval":60}
