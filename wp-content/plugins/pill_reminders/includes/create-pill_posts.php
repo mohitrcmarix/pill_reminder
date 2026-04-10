@@ -23,10 +23,10 @@ function register_pill_reminder_cpt() {
         'show_in_menu'       => true,
         'menu_position'      => 20,
         'menu_icon'          => 'dashicons-clock',
-        'supports'           => ['title', 'editor', 'author', 'custom-fields'],
+        'supports'           => array( 'title', 'editor', 'author', 'thumbnail', 'excerpt', 'custom-fields' ),
         'has_archive'        => true,
         'rewrite'            => ['slug' => 'pill_reminder'],
-        'show_in_rest'       => true, // enables Gutenberg + REST API
+        'show_in_rest'       => true,
     ];
 
     register_post_type('pill_reminder', $args);

@@ -33,36 +33,40 @@ add_action('init', function() {
 
                 // Update linked post if exists
                 $post_id = $wpdb->get_var($wpdb->prepare("SELECT post_id FROM $table_name WHERE id = %d", $edit_id));
-                // if ($post_id) {
-                    // wp_update_post([
-                    //     'ID'           => $post_id,
-                    //     'post_title'   => $data['reminder_title'],
-                    //     'post_content' => 'Medicine: ' . $data['medicine_name'] . 
-                    //                       "\nDose: " . $data['dose_value'] . ' ' . $data['dose_type'] . 
-                    //                       "\nFrequency: " . $data['frequency'] . 
-                    //                       "\nDuration: " . $data['duration_value'] . ' ' . $data['duration_type'] . 
-                    //                       "\nInstruction: " . $data['instruction'],
-                    // ]);
-                // }
+                if ($post_id) {
+                    wp_update_post([
+                        'ID'           => $post_id,
+                        'post_title'   => $data['reminder_title'],
+                        'post_content' => 'Medicine: ' . $data['medicine_name'] . 
+                                          "\nDose: " . $data['dose_value'] . ' ' . $data['dose_type'] . 
+                                          "\nFrequency: " . $data['frequency'] . 
+                                          "\nDuration: " . $data['duration_value'] . ' ' . $data['duration_type'] . 
+                                          "\nFrom date: " . $data['from_date'].
+                                          "\nTo Date: " . $data['to_date'].
+                                          "\nReminder Times: " . $data['reminder_times'],
+                                          "\nEmail: " . $data['email'],
+                                          
+                    ]);
+                }
             } else {
                 $wpdb->insert($table_name, $data);
                 $insert_id = $wpdb->insert_id;
                 echo '<div class="alert alert-success">New reminder added successfully!</div>';
 
-                // $post_id = wp_insert_post([
-                //     'post_title'   => $data['reminder_title'],
-                //     'post_content' => 'Medicine: ' . $data['medicine_name'] . 
-                //                       "\nDose: " . $data['dose_value'] . ' ' . $data['dose_type'] . 
-                //                       "\nFrequency: " . $data['frequency'] . 
-                //                       "\nDuration: " . $data['duration_value'] . ' ' . $data['duration_type'] . 
-                //                       "\nInstruction: " . $data['instruction'],
-                //     'post_status'  => 'publish',
-                //     'post_author'  => get_current_user_id(),
-                //     'post_type'    => 'pill_reminder',
-                // ]);
+                $post_id = wp_insert_post([
+                    'post_title'   => $data['reminder_title'],
+                    'post_content' => 'Medicine: ' . $data['medicine_name'] . 
+                                      "\nDose: " . $data['dose_value'] . ' ' . $data['dose_type'] . 
+                                      "\nFrequency: " . $data['frequency'] . 
+                                      "\nDuration: " . $data['duration_value'] . ' ' . $data['duration_type'] . 
+                                      "\nInstruction: " . $data['instruction'],
+                    'post_status'  => 'publish',
+                    'post_author'  => get_current_user_id(),
+                    'post_type'    => 'pill_reminder',
+                ]);
 
-                // // Save post_id back to table
-                // $wpdb->update($table_name, ['post_id' => $post_id], ['id' => $insert_id]);
+                // Save post_id back to table
+                $wpdb->update($table_name, ['post_id' => $post_id], ['id' => $insert_id]);
             }
 
            echo '<script>setTimeout(function(){ window.location.href = "' . esc_url(site_url('/pill_reminder_details/')) . '"; }, 500);</script>';

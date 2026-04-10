@@ -43,6 +43,7 @@ function pill_reminders_delete_reminder()
     wp_send_json_success('Deleted');
 }
 
+
 //actve deactive
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['medicine_id'])) {
     $medicine_id = intval($_POST['medicine_id']);

@@ -142,3 +142,14 @@ a:hover {
         float: none;
     }
 }
+
+.logout-link{
+    align-items: center !important;
+    display: flex !important;
+    text-decoration: none !important;
+    color: #334155 !important;
+}
+
+.logout-link:hover{
+    color: #0078d7 !important;
+}
