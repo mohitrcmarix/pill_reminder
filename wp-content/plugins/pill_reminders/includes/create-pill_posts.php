@@ -33,23 +33,22 @@ function register_pill_reminder_cpt() {
 }
 add_action('init', 'register_pill_reminder_cpt');
 
-// function my_custom_post_type()
-// {
-//     $labels=array(
-//             'name' => 'Pill Reminder',
-//             'singular_name' => 'Pill Reminder',
-//             'add_new_item' => 'Add New Pillreminder',
-//         );
-
-//     $args = array(
-//         'labels' => $labels,
-//         'public' => true,
-//         'has_archive' => true,
-//         'show_in_rest' => true,
-//         'supports' => array('title', 'editor', 'thumbnail', 'excerpt'),
-//         'menu_icon' => 'dashicons-controls-play',
+// function create_custom_post_type() {
+//     $labels = array(
+//         'name'               => _x( 'reminder', 'Post Type General Name', 'textdomain' ),
+//         'singular_name'      => _x( 'reminder', 'Post Type Singular Name', 'textdomain' ),
+//         'menu_name'          => __( 'reminder', 'textdomain' ),
+//         'add_new_item'       => __( 'Add New reminder', 'textdomain' ),
+//         'all_items'          => __( 'All reminder', 'textdomain' ),
 //     );
-//     register_post_type('pillreminder', $args);
-
+//     $args = array(
+//         'labels'             => $labels,    
+//         'public'             => true,
+//         'has_archive'        => true,
+//         'rewrite'            => array('slug' => 'reminder'),
+//         'show_in_rest'       => true, // Enables support for the Gutenberg editor
+//         'supports'           => array( 'title', 'editor', 'author', 'thumbnail', 'excerpt', 'custom-fields' ),
+//     );
+//     register_post_type( 'reminder', $args );
 // }
-// add_action('init', 'my_custom_post_type');
+// add_action( 'init', 'create_custom_post_type' );

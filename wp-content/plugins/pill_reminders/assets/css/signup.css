@@ -6,7 +6,7 @@
     box-sizing: border-box;
     padding: 35px;
     border-radius: 12px;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
     margin: 20px auto;
 }
 
@@ -38,7 +38,8 @@
 .input_field input[type="email"],
 .input_field select {
     width: 100%;
-    padding: 12px 15px 12px 45px; /* Space for the icon */
+    padding: 12px 15px 12px 45px;
+    /* Space for the icon */
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     box-sizing: border-box;
@@ -47,15 +48,17 @@
     background: #f9f9f9;
 }
 
-#togglePassword ,#toggleConfirmPassword{
+#togglePassword,
+#toggleConfirmPassword {
     position: absolute;
     right: 15px;
     top: 12px;
     cursor: pointer;
     color: #0078d7;
-    background: transparent; 
+    background: transparent;
     border: 0;
 }
+
 .input_field input:focus {
     border-color: #0078d7;
     background: #fff;
@@ -67,26 +70,30 @@
     width: 48%;
     float: left;
 }
+
 .row.clearfix .col_half:last-child {
     float: right;
 }
 
 /* --- Radio & Checkbox Styling --- */
-.radio_option, .checkbox_option {
+.radio_option,
+.checkbox_option {
     margin: 15px 0;
 }
 
-.radio_option label, .checkbox_option label {
+.radio_option label,
+.checkbox_option label {
     margin-right: 15px;
     font-size: 14px;
     color: #666;
     cursor: pointer;
 }
 
-.input_field input[type="radio"], 
+.input_field input[type="radio"],
 .input_field input[type="checkbox"] {
     margin-right: 8px;
-    accent-color: #0078d7; /* Matches theme */
+    accent-color: #0078d7;
+    /* Matches theme */
 }
 
 /* --- Select Styling --- */
@@ -143,13 +150,57 @@ a:hover {
     }
 }
 
-.logout-link{
+.logout-link {
     align-items: center !important;
     display: flex !important;
     text-decoration: none !important;
     color: #334155 !important;
 }
 
-.logout-link:hover{
+.logout-link:hover {
     color: #0078d7 !important;
+}
+
+.error-msg {
+    color: #dc3545;
+    font-size: 14px;
+    margin-top: 5px;
+    display: block;
+}
+
+.has-error {
+    border-color: #dc3545 !important;
+}
+
+/* loader */
+.pill-loader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.7);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.pill-loader-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #dc3545;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: pill-spin 1s linear infinite;
+}
+
+@keyframes pill-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }

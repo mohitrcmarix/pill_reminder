@@ -16,6 +16,7 @@ function pill_reminders_install_table() {
     duration_type varchar(100) DEFAULT '' NOT NULL,
     duration_value varchar(50) DEFAULT '' NOT NULL,
     instruction varchar(100) DEFAULT '' NOT NULL,
+    instruction_time varchar(100) DEFAULT '' NOT NULL,
     from_date date NOT NULL,
     to_date date NOT NULL,
     reminder_times longtext NOT NULL, -- JSON or serialized array

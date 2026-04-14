@@ -96,10 +96,13 @@ define( 'WP_DEBUG', true );
 define( 'WP_DEBUG_LOG', true );
 
 // Stop errors from showing on the front-end (keeps site looking clean)
-define( 'WP_DEBUG_DISPLAY', true );
+define( 'WP_DEBUG_DISPLAY', false);
+// define('DISABLE_WP_CRON', true);
+
 
 // Optional: Force PHP to show errors if the server is hiding them
 @ini_set( 'display_errors', 0 );
+
 
 /* Add any custom values between this line and the "stop editing" line. */
 

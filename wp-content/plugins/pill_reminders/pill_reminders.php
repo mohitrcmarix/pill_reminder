@@ -33,26 +33,56 @@ require_once plugin_dir_path(__FILE__) . 'includes/create-pill_posts.php';
 register_activation_hook(__FILE__, 'pill_reminders_activate');
 register_deactivation_hook(__FILE__, 'pill_reminders_deactivate');
 
-// Delete Reminder
+//  DELETE PILL REMINDER 
 add_action('wp_ajax_delete_pill_reminder', 'pill_reminders_delete_reminder');
+
 function pill_reminders_delete_reminder()
 {
     global $wpdb;
-    $id = intval($_POST['medicine_id']);
-    $wpdb->delete($wpdb->prefix . 'pill_reminders', ['id' => $id]);
-    wp_send_json_success('Deleted');
+    $table_name = $wpdb->prefix . 'pill_reminders';
+    $medicine_id = intval($_POST['medicine_id']);
+
+    if ($medicine_id <= 0) {
+        wp_send_json_error('Invalid reminder ID');
+    }
+
+    $reminder = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, post_id FROM $table_name WHERE id = %d",
+        $medicine_id
+    ));
+
+    if (!$reminder) {
+        wp_send_json_error('Reminder not found');
+    }
+
+    $post_id = $reminder->post_id;
+
+    $deleted_table = $wpdb->delete($table_name, ['id' => $medicine_id]);
+
+    if ($post_id > 0) {
+        wp_delete_post($post_id, true);
+    }
+
+    if ($deleted_table) {
+        wp_send_json_success('Deleted');
+    } else {
+        wp_send_json_error('Failed to delete from table');
+    }
 }
 
-
 //actve deactive
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['medicine_id'])) {
+if (isset($_POST['medicine_id'])) {
     $medicine_id = intval($_POST['medicine_id']);
     $status = isset($_POST['status']) ? 1 : 0;
 
     $wpdb->update($wpdb->prefix . 'pill_reminders', ['status' => $status], ['id' => $medicine_id], ['%d'], ['%d']);
+
 }
 
 // -------------------- email sending code for remider timming --------------------------
+/**
+ * Mailtrap SMTP Configuration
+ */
 
 function mailtrap($phpmailer)
 {
@@ -60,11 +90,10 @@ function mailtrap($phpmailer)
     $phpmailer->Host = 'sandbox.smtp.mailtrap.io';
     $phpmailer->SMTPAuth = true;
     $phpmailer->Port = 2525;
-    $phpmailer->Username = 'b8a04176602916';
-    $phpmailer->Password = '9a5de39ed7dc73';
+    $phpmailer->Username = '642b4be144e59e';
+    $phpmailer->Password = '2d787642b43b3f';
     $phpmailer->SMTPSecure = '';
-
-    $phpmailer->setFrom('noreply@yourdomain.com', 'WordPress Test');
+    $phpmailer->setFrom('noreply@yourdomain.com', 'Pill Reminders');
 }
 add_action('phpmailer_init', 'mailtrap');
 
@@ -72,119 +101,143 @@ add_filter('wp_mail_from', function () {
     return 'noreply@yourdomain.com';
 });
 add_filter('wp_mail_from_name', function () {
-    return 'WordPress Test';
+    return 'Pill Reminders';
 });
 
+/**
+ * Schedule Cron - Every 30 seconds for better accuracy
+ */
 function schedule_reminder_email()
 {
     if (!wp_next_scheduled('check_reminder_email')) {
-        wp_schedule_event(time(), 'minute', 'check_reminder_email');
+        wp_schedule_event(time(), 'every_30_seconds', 'check_reminder_email');
     }
 }
 add_action('wp', 'schedule_reminder_email');
 
-// 1. Cron schedule
 add_filter('cron_schedules', function ($schedules) {
-    $schedules['minute'] = [
-        'interval' => 60,
-        'display' => __('Every Minute')
+    $schedules['every_30_seconds'] = [
+        'interval' => 30,
+        'display'  => __('Every 30 seconds')
     ];
     return $schedules;
 });
 
-add_action('wp', function () {
-    if (!wp_next_scheduled('check_reminder_email')) {
-        wp_schedule_event(time(), 'minute', 'check_reminder_email');
-    }
-});
-
-// 2. Reminder Email HTML structure
-add_action('check_reminder_email', function () {
-    global $wpdb;
+/**
+ * MAIN REMINDER EMAIL FUNCTION - FIXED FOR CORRECT TIMING
+ */
+add_action('check_reminder_email', function() {
+    global $wpdb, $phpmailer;
     $table_name = $wpdb->prefix . 'pill_reminders';
-
-    $rows = $wpdb->get_results("
-        SELECT * FROM $table_name 
-        WHERE status = 1 
-          AND CURDATE() BETWEEN from_date AND to_date
-    ");
-
+    
     $wp_timezone = wp_timezone();
-    $current_dt = new DateTime('now', $wp_timezone);
+    $current_dt  = new DateTime('now', $wp_timezone);
+    
+    $current_date   = $current_dt->format('Y-m-d');
     $current_timestamp = $current_dt->getTimestamp();
 
+    error_log("🔍 Cron ran at: " . $current_dt->format('Y-m-d H:i:s'));
+
+    $rows = $wpdb->get_results($wpdb->prepare("
+        SELECT * FROM $table_name 
+        WHERE status = 1 
+          AND %s BETWEEN from_date AND to_date
+    ", $current_date));
+
+    if (empty($rows)) return;
+
+    $sent_count = 0;
+
     foreach ($rows as $row) {
-        $times = json_decode($row->reminder_times, true);
+        $times_raw = trim($row->reminder_times ?? '');
+        $times_raw = preg_replace('/afterfood|withfood|beforefood.*/i', '', $times_raw);
+        $times = json_decode($times_raw, true) ?: [];
 
-        if (is_array($times)) {
-            foreach ($times as $time) {
-                $reminder_dt = date_create_from_format('Y-m-d H:i', date('Y-m-d') . ' ' . $time, $wp_timezone);
-                $reminder_timestamp = $reminder_dt->getTimestamp();
+        if (!is_array($times) || empty($times)) continue;
 
-                // 3. Log every check
-                // error_log("ℹ️ User {$row->user_id} reminder scheduled at {$reminder_dt->format('Y-m-d H:i:s')} — current time {$current_dt->format('Y-m-d H:i:s')}");
+        foreach ($times as $time) {
+            $time = trim($time);
 
-                // 4. Compare and send
-                if (abs($current_timestamp - $reminder_timestamp) < 60) {
+            $reminder_dt = date_create_from_format('Y-m-d H:i', $current_date . ' ' . $time, $wp_timezone);
+            if (!$reminder_dt) continue;
+            
+            $reminder_timestamp = $reminder_dt->getTimestamp();
 
-                    // Structured fields
-                    $title = "Pill Reminder";
-                    $subject = "🔔 Pill Reminder - {$row->medicine_name} at {$current_dt->format('H:i')}";
-                    $to = $row->email;
-                    $from = "noreply@yourdomain.com";
-                    $cc = "rathodmohit149@gmail.com";
+            // Resilient timestamp check prevents WP-Cron dropping pills when it sleeps
+            if ($reminder_timestamp > $current_timestamp) {
+                continue; // Time has not arrived yet
+            }
+            if (($current_timestamp - $reminder_timestamp) > 3600) {
+                continue; // Over 1 hour late, expiration limit reached
+            }
 
-                    // HTML body
-                    $body = '
-                    <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto; padding:20px; border:1px solid #ddd;">
-                        <h2 style="color:#d32f2f;">' . esc_html($title) . '</h2>
-                        <p>Hello,</p>
-                        <p><strong>Time to take your medicine:</strong></p>
-                        
-                        <table style="width:100%; border-collapse:collapse; margin:15px 0;">
-                            <tr>
-                                <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9; width:40%;"><strong>Medicine</strong></td>
-                                <td style="padding:12px; border:1px solid #ddd;">' . esc_html($row->medicine_name) . '</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Time</strong></td>
-                                <td style="padding:12px; border:1px solid #ddd;">' . esc_html($current_dt->format('Y-m-d H:i:s')) . '</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Dose</strong></td>
-                                <td style="padding:12px; border:1px solid #ddd;">' . esc_html($row->dose_value . " " . $row->dose_type) . '</td>
-                            </tr>
-                            <tr>
-                                <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Instruction</strong></td>
-                                <td style="padding:12px; border:1px solid #ddd;">' . esc_html($row->instruction) . '</td>
-                            </tr>
-                        </table>
+            $sent_key = "pill_email_sent_{$row->id}_{$current_date}_{$time}";
 
-                        <p><strong>Please take it on time.</strong></p>
-                        <hr>
-                        <p style="font-size:12px;color:#666;">This is an automated reminder from Pill Reminders plugin.</p>
-                    </div>
-                    ';
+            if (get_transient($sent_key)) {
+                continue; // Already successfully processed today
+            }
 
-                    // Headers with CC
-                    $headers = [
-                        'Content-Type: text/html; charset=UTF-8',
-                        'From: WordPress Test <' . $from . '>',
-                        'Cc: ' . $cc
-                    ];
+            $subject = "🔔 Pill Reminder - {$row->medicine_name} at {$time}";
 
-                    if (wp_mail($to, $subject, $body, $headers)) {
-                        error_log("✅ Reminder email sent to {$to} (copy to {$cc}) at {$current_dt->format('Y-m-d H:i:s')}");
-                    } else {
-                        error_log("❌ Failed to send reminder email to {$to} at {$current_dt->format('Y-m-d H:i:s')}");
-                    }
+            $body = '
+            <div style="font-family:Arial,sans-serif; max-width:600px; margin:0 auto; padding:20px; border:1px solid #ddd;">
+                <h2 style="color:#d32f2f;">Pill Reminder</h2>
+                <p>Hello,</p>
+                <p><strong>Time to take your medicine:</strong></p>
+                
+                <table style="width:100%; border-collapse:collapse; margin:15px 0;">
+                    <tr>
+                        <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9; width:40%;"><strong>Medicine</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($row->medicine_name) . '</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Time</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($time) . '</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Dose</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($row->dose_value . " " . $row->dose_type) . '</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:12px; border:1px solid #ddd; background:#f9f9f9;"><strong>Instruction</strong></td>
+                        <td style="padding:12px; border:1px solid #ddd;">' . esc_html($row->instruction) . '</td>
+                    </tr>
+                </table>
+
+                <p><strong>Please take it on time.</strong></p>
+                <hr>
+                <p style="font-size:12px;color:#666;">This is an automated reminder from Pill Reminders plugin.</p>
+            </div>';
+
+            $headers = [
+                'Content-Type: text/html; charset=UTF-8',
+                'From: Pill Reminders <noreply@yourdomain.com>',
+                'Cc: rathodmohit149@gmail.com'
+            ];
+
+            if (wp_mail($row->email, $subject, $body, $headers)) {
+                set_transient($sent_key, true, 86400);   // Complete locking prevents duplicate sends
+                error_log("✅ SUCCESS: Sent to {$row->email} → {$row->medicine_name} at {$time}");
+                $sent_count++;
+                
+                // IMPORTANT BUGFIX: Mailtrap throws "nested MAIL command" if we don't close the global connection between rapid loops!
+                if (isset($phpmailer) && is_object($phpmailer) && method_exists($phpmailer, 'smtpClose')) {
+                    $phpmailer->smtpClose();
                 }
+                
+                sleep(10);
+            } else {
+                error_log("❌ FAILED: {$row->medicine_name} at {$time}");
             }
         }
+    }
+
+    if ($sent_count > 0) {
+        error_log("📊 Total sequentially queued emails fully delivered this run: {$sent_count}");
     }
 });
 
 // Catch failures
-add_action('wp_mail_failed', function ($wp_error) {
+add_action('wp_mail_failed', function($wp_error) {
     error_log('Mail error: ' . print_r($wp_error, true));
 });

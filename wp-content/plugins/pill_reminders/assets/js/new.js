@@ -28,22 +28,25 @@ jQuery(document).ready(function ($) {
   });
 
   // reset the add pillreminder form
-  $("#reminderForm").on("submit", function (e) {
-    // after a short delay, clear the form
-    var form = this;
-    setTimeout(function () {
-      form.reset();
-    }, 500);
-  });
+  // $("#reminderForm").on("submit", function (e) {
+  //   // after a short delay, clear the form
+  //   var form = this;
+  //   setTimeout(function () {
+  //     form.reset();
+  //   }, 500);
+  // });
 
-// delete the pill reminder
+  // delete the pill reminder
   $(document).on("click", ".delete-reminder", function (e) {
     e.preventDefault();
 
     var medicineId = $(this).data("id");
     var card = $(this).closest(".col-md-6");
+    var rowContainer = card.closest(".row.gy-3");
+    var loader = $("#pill-loader");
 
     if (confirm("Are you sure you want to delete this pill reminder?")) {
+      loader.css("display", "flex");
       $.ajax({
         url: ajax_object.ajaxurl,
         type: "POST",
@@ -55,25 +58,27 @@ jQuery(document).ready(function ($) {
           if (response.success) {
             card.fadeOut(400, function () {
               $(this).remove();
-
-              if ($(".col-md-6").length === 0) {
-                $(".row.gy-3").html(
-                  '<div class="col-12"><p class="text-center">No reminders found.</p></div>',
+              loader.hide();
+              if (rowContainer.find(".col-md-6").length === 0) {
+                rowContainer.html(
+                  "<div class='col-12'><p class='error-message text-center'>No reminders found.</p></div>",
                 );
               }
             });
           } else {
+            loader.hide();
             alert("Failed to delete: " + (response.data || "Unknown error"));
           }
         },
         error: function () {
+          loader.hide();
           alert("Something went wrong. Please try again.");
         },
       });
     }
   });
 
-// add new time field 
+  // add new time field
   $(document).on("click", ".add-time-btn", function (e) {
     e.preventDefault();
 
@@ -95,13 +100,13 @@ jQuery(document).ready(function ($) {
     $(".reminder-time-row:last").after($newRow);
   });
 
-// remove added time field
+  // remove added time field
   $(document).on("click", ".remove-time-btn", function (e) {
     e.preventDefault();
     $(this).closest(".reminder-time-row").remove();
   });
 
-// hide show password
+  // hide show password
   $("#togglePassword").on("click", function () {
     console.log("Password toggle clicked");
 
@@ -112,7 +117,7 @@ jQuery(document).ready(function ($) {
     $(this).text(type === "password" ? "Show" : "Hide");
   });
 
-//   hide show confirmpassword
+  //   hide show confirmpassword
   $("#toggleConfirmPassword").on("click", function () {
     console.log("Confirm password toggle clicked");
 
@@ -122,6 +127,137 @@ jQuery(document).ready(function ($) {
 
     $(this).text(type === "password" ? "Show" : "Hide");
   });
+
+  //validation on form submit
+  $("form").on("submit", function (e) {
+    let isValid = true;
+    $(".error-msg").remove();
+
+    // Title
+    if ($("input[name='title']").val().trim() === "") {
+      $("input[name='title']").after(
+        "<span class='error-msg text-danger'>Title is required</span>",
+      );
+      isValid = false;
+    }
+
+    // Medicine Name
+    if ($("input[name='medicine_name']").val().trim() === "") {
+      $("input[name='medicine_name']").after(
+        "<span class='error-msg text-danger'>Medicine name is required</span>",
+      );
+      isValid = false;
+    }
+
+    // Dose Value
+    let doseVal = $("input[name='dose_value']").val();
+    if (doseVal === "" || isNaN(doseVal) || doseVal <= 0) {
+      $("input[name='dose_value']").after(
+        "<span class='error-msg text-danger'>Enter a valid dose</span>",
+      );
+      isValid = false;
+    }
+
+    // Dose Type
+    if ($("select[name='dose_type']").val() === "") {
+      $("select[name='dose_type']").after(
+        "<span class='error-msg text-danger'>Select dose type</span>",
+      );
+      isValid = false;
+    }
+
+    // Frequency
+    if ($("select[name='frequency']").val() === "") {
+      $("select[name='frequency']").after(
+        "<span class='error-msg text-danger'>Select frequency</span>",
+      );
+      isValid = false;
+    }
+
+    // Duration
+    if ($("select[name='duration_type']").val() === "") {
+      $("select[name='duration_type']").after(
+        "<span class='error-msg text-danger'>Select duration type</span>",
+      );
+      isValid = false;
+    }
+    if (
+      $("input[name='duration_value']").val() === "" ||
+      $("input[name='duration_value']").val() <= 0
+    ) {
+      $("input[name='duration_value']").after(
+        "<span class='error-msg text-danger'>Enter valid duration</span>",
+      );
+      isValid = false;
+    }
+
+    // Instruction
+    if ($("select[name='instruction']").val() === "") {
+      $("select[name='instruction']").after(
+        "<span class='error-msg text-danger'>Select instruction</span>",
+      );
+      isValid = false;
+    }
+     if (
+      $("input[name='instruction_time']").val() === "" ||
+      $("input[name='instruction_time']").val() <= 0
+    ) {
+      $("input[name='instruction_time']").after(
+        "<span class='error-msg text-danger'>Enter valid duration</span>",
+      );
+      isValid = false;
+    }
+
+    // Dates
+    let fromDate = $("input[name='from_date']").val();
+    let toDate = $("input[name='to_date']").val();
+    if (fromDate === "") {
+      $("input[name='from_date']").after(
+        "<span class='error-msg text-danger'>Select start date</span>",
+      );
+      isValid = false;
+    }
+    if (toDate === "") {
+      $("input[name='to_date']").after(
+        "<span class='error-msg text-danger'>Select end date</span>",
+      );
+      isValid = false;
+    }
+    if (fromDate && toDate && new Date(toDate) < new Date(fromDate)) {
+      $("input[name='to_date']").after(
+        "<span class='error-msg text-danger'>End date must be after start date</span>",
+      );
+      isValid = false;
+    }
+
+    // Email
+    let email = $("input[name='email']").val();
+    let emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email === "" || !emailPattern.test(email)) {
+      $("input[name='email']").after(
+        "<span class='error-msg text-danger'>Enter valid email</span>",
+      );
+      isValid = false;
+    }
+
+    // Reminder Times
+    $("input[name='times[]']").each(function () {
+      if ($(this).val() === "") {
+        $(this).after(
+          "<span class='error-msg text-danger'>Time is required</span>",
+        );
+        isValid = false;
+      }
+    });
+
+    if (!isValid) {
+      e.preventDefault(); // stop form submission
+    }
+  });
+  //current date to past date disable
+  var today=new Date().toISOString().split('T')[0];
+  $("input[name=from_date]").attr('min',today);
+  $('input[name=to_date]').attr('min',today);
 
   // $('.toggle-status').on('change', function() {
   //     let checkbox = $(this);
@@ -159,5 +295,4 @@ jQuery(document).ready(function ($) {
   //         }
   //     });
   // });
-
 });
